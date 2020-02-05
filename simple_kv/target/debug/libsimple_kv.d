@@ -1,0 +1,1 @@
+/Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/target/debug/libsimple_kv.rlib: /Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/src/kv.rs /Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/src/lib.rs

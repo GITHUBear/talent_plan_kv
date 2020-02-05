@@ -13,12 +13,35 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="db835c17-761b-46c0-b9dc-4b436aed51d6" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/simple_kv/src/kv.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/talent_plan_kv.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/talent_plan_kv.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/simple_kv/src/bin/simple_kv.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/simple_kv/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/simple_kv/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/simple_kv/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/simple_kv/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/src/kv.rs" beforeDir="false" afterPath="$PROJECT_DIR$/simple_kv/src/kv.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/simple_kv/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/.fingerprint/simple_kv-d05b4a09cca347df/output" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/deps/libsimple_kv-f8e42de39bc2cdf5.rlib" beforeDir="false" afterPath="$PROJECT_DIR$/simple_kv/target/debug/deps/libsimple_kv-f8e42de39bc2cdf5.rlib" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/deps/libsimple_kv-f8e42de39bc2cdf5.rmeta" beforeDir="false" afterPath="$PROJECT_DIR$/simple_kv/target/debug/deps/libsimple_kv-f8e42de39bc2cdf5.rmeta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/deps/simple_kv-262ab60a9cb3f0fd" beforeDir="false" afterPath="$PROJECT_DIR$/simple_kv/target/debug/deps/simple_kv-262ab60a9cb3f0fd" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-19rbne3kqonjb/s-fkcktdelqm-1oc3aqy-7yduhnhhz9lt/13onyufap4md80x6.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-19rbne3kqonjb/s-fkcktdelqm-1oc3aqy-7yduhnhhz9lt/1hxxqxw736vh88ak.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-19rbne3kqonjb/s-fkcktdelqm-1oc3aqy-7yduhnhhz9lt/2wt6xnvdqd5ta3wk.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-19rbne3kqonjb/s-fkcktdelqm-1oc3aqy-7yduhnhhz9lt/34s3x3n468t4uu95.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-19rbne3kqonjb/s-fkcktdelqm-1oc3aqy-7yduhnhhz9lt/425yppwm0b38rlma.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-19rbne3kqonjb/s-fkcktdelqm-1oc3aqy-7yduhnhhz9lt/dep-graph.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-19rbne3kqonjb/s-fkcktdelqm-1oc3aqy-7yduhnhhz9lt/query-cache.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-19rbne3kqonjb/s-fkcktdelqm-1oc3aqy-7yduhnhhz9lt/work-products.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-19rbne3kqonjb/s-fkcktdelqm-1oc3aqy.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-1bsgaloejttop/s-fkcktdels0-17kpn27-1a72h6o4eifr8/3ck79kyzk4gvclf5.bc.z" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-1bsgaloejttop/s-fkcktdels0-17kpn27-1a72h6o4eifr8/3ck79kyzk4gvclf5.o" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-1bsgaloejttop/s-fkcktdels0-17kpn27-1a72h6o4eifr8/dep-graph.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-1bsgaloejttop/s-fkcktdels0-17kpn27-1a72h6o4eifr8/query-cache.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-1bsgaloejttop/s-fkcktdels0-17kpn27-1a72h6o4eifr8/work-products.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/simple_kv-1bsgaloejttop/s-fkcktdels0-17kpn27.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/incremental/tests-3qt10pdgnq53b/s-fkcktdgu3g-193hlvx.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/libsimple_kv.rlib" beforeDir="false" afterPath="$PROJECT_DIR$/simple_kv/target/debug/libsimple_kv.rlib" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/simple_kv" beforeDir="false" afterPath="$PROJECT_DIR$/simple_kv/target/debug/simple_kv" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/simple_kv-262ab60a9cb3f0fd" beforeDir="false" afterPath="$PROJECT_DIR$/simple_kv/target/debug/simple_kv-262ab60a9cb3f0fd" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/simple_kv/target/debug/simple_kv.dSYM" beforeDir="false" afterPath="$PROJECT_DIR$/simple_kv/target/debug/simple_kv.dSYM" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/simple_kv/tests/tests.rs" beforeDir="false" afterPath="$PROJECT_DIR$/simple_kv/tests/tests.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -33,10 +56,58 @@
   <component name="FileEditorManager">
     <leaf>
       <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/simple_kv/Cargo.toml">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="198">
+              <caret line="9" column="15" selection-start-line="9" selection-start-column="15" selection-end-line="9" selection-end-column="15" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/simple_kv/src/lib.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state>
+              <caret column="20" selection-start-column="20" selection-end-column="20" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/simple_kv/tests/tests.rs">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="22">
-              <caret line="1" column="22" selection-start-line="1" selection-start-column="15" selection-end-line="1" selection-end-column="22" />
+            <state relative-caret-position="88">
+              <caret line="4" selection-start-line="4" selection-end-line="4" />
+              <folding>
+                <element signature="e#198#199#0" expanded="true" />
+                <element signature="e#265#266#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/simple_kv/src/kv.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="484">
+              <caret line="22" column="34" selection-start-line="22" selection-start-column="34" selection-end-line="22" selection-end-column="34" />
+              <folding>
+                <element signature="e#236#237#0" expanded="true" />
+                <element signature="e#282#283#0" expanded="true" />
+                <element signature="e#336#337#0" expanded="true" />
+                <element signature="e#368#369#0" expanded="true" />
+                <element signature="e#454#455#0" expanded="true" />
+                <element signature="e#472#473#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/simple_kv/src/bin/simple_kv.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="790">
+              <caret line="45" column="20" selection-start-line="45" selection-start-column="20" selection-end-line="45" selection-end-column="20" />
             </state>
           </provider>
         </entry>
@@ -54,38 +125,19 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/simple_kv/Cargo.toml">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="198">
-              <caret line="9" selection-start-line="9" selection-end-line="9" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/simple_kv/src/lib.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state>
-              <caret column="20" selection-start-column="20" selection-end-column="20" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/simple_kv/src/kv.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state>
-              <caret column="4" selection-start-column="4" selection-end-column="4" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/simple_kv/Cargo.lock">
           <provider selected="true" editor-type-id="text-editor" />
         </entry>
       </file>
     </leaf>
+  </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>kvs</find>
+    </findStrings>
+    <replaceStrings>
+      <replace>simple_kv</replace>
+    </replaceStrings>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -94,10 +146,11 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/README.md" />
-        <option value="$PROJECT_DIR$/simple_kv/Cargo.toml" />
-        <option value="$PROJECT_DIR$/simple_kv/tests/tests.rs" />
         <option value="$PROJECT_DIR$/simple_kv/src/lib.rs" />
         <option value="$PROJECT_DIR$/simple_kv/src/kv.rs" />
+        <option value="$PROJECT_DIR$/simple_kv/tests/tests.rs" />
+        <option value="$PROJECT_DIR$/simple_kv/Cargo.toml" />
+        <option value="$PROJECT_DIR$/simple_kv/src/bin/simple_kv.rs" />
       </list>
     </option>
   </component>
@@ -130,6 +183,13 @@
               <item name="talent_plan_kv" type="462c0819:PsiDirectoryNode" />
               <item name="simple_kv" type="462c0819:PsiDirectoryNode" />
               <item name="src" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="talent_plan_kv" type="b2602c69:ProjectViewProjectNode" />
+              <item name="talent_plan_kv" type="462c0819:PsiDirectoryNode" />
+              <item name="simple_kv" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="bin" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="talent_plan_kv" type="b2602c69:ProjectViewProjectNode" />
@@ -194,12 +254,12 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1580805806356</updated>
-      <workItem from="1580805807893" duration="1394000" />
+      <workItem from="1580805807893" duration="7442000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="1394000" />
+    <option name="totallyTimeSpent" value="7442000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -215,15 +275,15 @@
     <editor active="true" />
     <layout>
       <window_info id="Favorites" side_tool="true" />
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.24964234" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.18025751" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info anchor="bottom" id="Database Changes" />
-      <window_info anchor="bottom" id="Version Control" />
-      <window_info anchor="bottom" id="Terminal" weight="0.32891566" />
+      <window_info anchor="bottom" id="Version Control" weight="0.32891566" />
+      <window_info anchor="bottom" id="Terminal" weight="0.69638556" />
       <window_info anchor="bottom" id="Event Log" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.50240964" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.2879518" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -234,13 +294,81 @@
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
     </layout>
+    <layout-to-restore>
+      <window_info id="Favorites" order="0" side_tool="true" />
+      <window_info content_ui="combo" id="Project" order="1" visible="true" weight="0.24964234" />
+      <window_info id="Structure" order="2" side_tool="true" weight="0.25" />
+      <window_info anchor="bottom" id="Version Control" order="0" weight="0.32891566" />
+      <window_info active="true" anchor="bottom" id="Terminal" order="1" visible="true" weight="0.2686747" />
+      <window_info anchor="bottom" id="Event Log" order="2" side_tool="true" />
+      <window_info anchor="bottom" id="Database Changes" order="3" />
+      <window_info anchor="bottom" id="Message" order="4" />
+      <window_info anchor="bottom" id="Find" order="5" />
+      <window_info anchor="bottom" id="Run" order="6" weight="0.50240964" />
+      <window_info anchor="bottom" id="Debug" order="7" weight="0.4" />
+      <window_info anchor="bottom" id="Cvs" order="8" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="9" weight="0.4" />
+      <window_info anchor="bottom" id="TODO" order="10" weight="0.32891566" />
+      <window_info anchor="right" id="Cargo" order="0" />
+      <window_info anchor="right" id="Database" order="1" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="2" type="SLIDING" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="3" weight="0.25" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="4" weight="0.25" />
+    </layout-to-restore>
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-apple-darwin/lib/rustlib/src/rust/src/libstd/collections/hash/map.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="263">
+          <caret line="1620" column="9" selection-start-line="1620" selection-start-column="9" selection-end-line="1620" selection-end-column="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-apple-darwin/lib/rustlib/src/rust/src/libcore/option.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="117">
+          <caret line="447" column="11" selection-start-line="447" selection-start-column="11" selection-end-line="447" selection-end-column="11" />
+          <folding>
+            <element signature="e#28958#28959#0" expanded="true" />
+            <element signature="e#28996#28997#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/simple_kv/Cargo.lock">
       <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/simple_kv/Cargo.toml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="198">
+          <caret line="9" column="15" selection-start-line="9" selection-start-column="15" selection-end-line="9" selection-end-column="15" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/simple_kv/src/lib.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret column="20" selection-start-column="20" selection-end-column="20" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/simple_kv/src/kv.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="484">
+          <caret line="22" column="34" selection-start-line="22" selection-start-column="34" selection-end-line="22" selection-end-column="34" />
+          <folding>
+            <element signature="e#236#237#0" expanded="true" />
+            <element signature="e#282#283#0" expanded="true" />
+            <element signature="e#336#337#0" expanded="true" />
+            <element signature="e#368#369#0" expanded="true" />
+            <element signature="e#454#455#0" expanded="true" />
+            <element signature="e#472#473#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/README.md">
       <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
@@ -254,29 +382,19 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/simple_kv/tests/tests.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="22">
-          <caret line="1" column="22" selection-start-line="1" selection-start-column="15" selection-end-line="1" selection-end-column="22" />
+        <state relative-caret-position="88">
+          <caret line="4" selection-start-line="4" selection-end-line="4" />
+          <folding>
+            <element signature="e#198#199#0" expanded="true" />
+            <element signature="e#265#266#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/simple_kv/Cargo.toml">
+    <entry file="file://$PROJECT_DIR$/simple_kv/src/bin/simple_kv.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="198">
-          <caret line="9" selection-start-line="9" selection-end-line="9" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/simple_kv/src/kv.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <caret column="4" selection-start-column="4" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/simple_kv/src/lib.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <caret column="20" selection-start-column="20" selection-end-column="20" />
+        <state relative-caret-position="790">
+          <caret line="45" column="20" selection-start-line="45" selection-start-column="20" selection-end-line="45" selection-end-column="20" />
         </state>
       </provider>
     </entry>
