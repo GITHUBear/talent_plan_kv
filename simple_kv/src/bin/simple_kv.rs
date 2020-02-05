@@ -1,49 +1,39 @@
-use clap::{App, Arg, SubCommand};
 use simple_kv::KvStore;
 use std::process::exit;
+use structopt::StructOpt;
+
+#[derive(Debug, StructOpt)]
+enum Opt {
+    Set {
+        #[structopt(name = "KEY", required = true)]
+        key: String,
+        #[structopt(name = "VALUE", required = true)]
+        value: String,
+    },
+    Get {
+        #[structopt(name = "KEY", required = true)]
+        key: String,
+    },
+    Rm {
+        #[structopt(name = "KEY", required = true)]
+        key: String,
+    },
+}
 
 fn main() {
-    let cmd_pattern = App::new(env!("CARGO_PKG_NAME"))
-        .version(env!("CARGO_PKG_VERSION"))
-        .author(env!("CARGO_PKG_AUTHORS"))
-        .about(env!("CARGO_PKG_DESCRIPTION"))
-        .subcommand(
-            SubCommand::with_name("set")
-                .about("Set the value of a string key to a string")
-                .arg(Arg::with_name("KEY").help("A string key").required(true))
-                .arg(
-                    Arg::with_name("VALUE")
-                        .help("The string value of KEY")
-                        .required(true),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("get")
-                .about("Get the string value of a given string key")
-                .arg(Arg::with_name("KEY").help("A string key").required(true)),
-        )
-        .subcommand(
-            SubCommand::with_name("rm")
-                .about("Remove a given key")
-                .arg(Arg::with_name("KEY").help("A string key").required(true)),
-        )
-        .get_matches();
-
-    match cmd_pattern.subcommand() {
-        ("set", Some(_args_match)) => {
+    let opt = Opt::from_args();
+    match opt {
+        Opt::Set { key: _, value: _ } => {
             eprintln!("unimplemented");
             exit(1);
-        }
-        ("get", Some(_args_match)) => {
+        },
+        Opt::Get { key: _ } => {
             eprintln!("unimplemented");
             exit(1);
-        }
-        ("rm", Some(_args_match)) => {
+        },
+        Opt::Rm { key: _ } => {
             eprintln!("unimplemented");
             exit(1);
-        }
-        (_, _) => {
-            exit(1);
-        }
+        },
     }
 }

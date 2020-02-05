@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["KvStore","`KvStore` is an in-memory key-value pairs storage."]]});

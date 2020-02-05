@@ -1,0 +1,11 @@
+var ALIASES = {};
+ALIASES["ansi_term"] = {};
+ALIASES["atty"] = {};
+ALIASES["bitflags"] = {};
+ALIASES["clap"] = {};
+ALIASES["libc"] = {};
+ALIASES["simple_kv"] = {};
+ALIASES["strsim"] = {};
+ALIASES["textwrap"] = {};
+ALIASES["unicode_width"] = {};
+ALIASES["vec_map"] = {};

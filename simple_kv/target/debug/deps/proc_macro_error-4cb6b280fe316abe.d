@@ -1,0 +1,11 @@
+/Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/target/debug/deps/proc_macro_error-4cb6b280fe316abe.rmeta: /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/lib.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/dummy.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/diagnostic.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/macros.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/imp/fallback.rs
+
+/Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/target/debug/deps/libproc_macro_error-4cb6b280fe316abe.rlib: /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/lib.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/dummy.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/diagnostic.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/macros.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/imp/fallback.rs
+
+/Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/target/debug/deps/proc_macro_error-4cb6b280fe316abe.d: /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/lib.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/dummy.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/diagnostic.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/macros.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/imp/fallback.rs
+
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/lib.rs:
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/dummy.rs:
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/diagnostic.rs:
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/macros.rs:
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/proc-macro-error-0.4.8/src/imp/fallback.rs:
