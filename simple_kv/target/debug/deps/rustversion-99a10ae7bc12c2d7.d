@@ -1,0 +1,12 @@
+/Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/target/debug/deps/librustversion-99a10ae7bc12c2d7.dylib: /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/lib.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/attr.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/bound.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/date.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/expr.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/time.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/version.rs /Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/target/debug/build/rustversion-d2a3bb87926dbe55/out/version.rs
+
+/Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/target/debug/deps/rustversion-99a10ae7bc12c2d7.d: /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/lib.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/attr.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/bound.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/date.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/expr.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/time.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/version.rs /Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/target/debug/build/rustversion-d2a3bb87926dbe55/out/version.rs
+
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/lib.rs:
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/attr.rs:
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/bound.rs:
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/date.rs:
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/expr.rs:
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/time.rs:
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rustversion-1.0.2/src/version.rs:
+/Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/target/debug/build/rustversion-d2a3bb87926dbe55/out/version.rs:

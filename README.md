@@ -1,677 +1,486 @@
-# PNA Rust Project 1: The Rust toolbox
+# PNA Rust Project 3: Synchronous client-server networking
 
-**Task**: Create an in-memory key/value store that passes simple tests and responds
-to command-line arguments.
+**Task**: Create a _single-threaded_, persistent key/value store _server and client
+with synchronous networking over a custom protocol_.
 
 **Goals**:
 
-- Install the Rust compiler and tools
-- Learn the project structure used throughout this course
-- Use `cargo init` / `run` / `test` / `clippy` / `fmt`
-- Learn how to find and import crates from crates.io
-- Define an appropriate data type for a key-value store
+- Create a client-server application
+- Write a custom protocol with `std` networking APIs
+- Introduce logging to the server
+- Implement pluggable backends with traits
+- Benchmark the hand-written backend against `sled`
 
-**Topics**: testing, the `clap` crate, `CARGO_VERSION` etc., the `clippy` and
-  `rustfmt` tools.
+**Topics**: `std::net`, logging, traits, benchmarking.
 
-**Extensions**: the `structopt` crate.
+<!-- TODO **Extensions**: shutdown on signal. -->
 
 - [Introduction](#user-content-introduction)
 - [Project spec](#user-content-project-spec)
-- [Installation](#user-content-installation)
 - [Project setup](#user-content-project-setup)
-- [Part 1: Make the tests compile](#user-content-part-1-make-the-tests-compile)
-  - [Aside: Testing tips](#user-content-aside-testing-tips)
-- [Part 2: Accept command line arguments](#user-content-part-2-accept-command-line-arguments)
-- [Part 3: Cargo environment variables](#user-content-part-3-cargo-environment-variables)
-- [Part 4: Store values in memory](#user-content-part-4-store-values-in-memory)
-- [Part 5: Documentation](#user-content-part-5-documentation)
-- [Part 6: Ensure good style with `clippy` and `rustfmt`](#user-content-part-6-ensure-good-style-with-clippy-and-rustfmt)
-- [Extension 1: `structopt`](#user-content-extension-1-structopt)
-
+- [Part 1: Command line parsing](#user-content-part-1-command-line-parsing)
+- [Part 2: Logging](#user-content-part-2-logging)
+- [Part 3: Client-server networking setup](#user-content-part-3-client-server-networking-setup)
+- [Part 4: Implementing commands across the network](#user-content-part-4-implementing-commands-across-the-network)
+- [Part 5: Pluggable storage engines](#user-content-part-5-pluggable-storage-engines)
+- [Part 6: Benchmarking](#user-content-part-6-benchmarking)
 
 ## Introduction
 
-In this project you will create a simple in-memory key/value store that maps
-strings to strings, and that passes some tests and responds to command line
-arguments. The focus of this project is on the tooling and setup that goes into
-a typical Rust project.
-
-If this sounds basic to you, please do the project anyway as it discusses some
-general patterns that will be used throughout the course.
-
+In this project you will create a simple key/value server and client. They will
+communicate with a custom networking protocol of your design. You will emit logs
+using standard logging crates, and handle errors correctly across the network
+boundary. Once you have a working client-server architecture,
+then you will abstract the storage engine behind traits, and compare
+the performance of yours to the [`sled`] engine.
 
 ## Project spec
 
 The cargo project, `kvs`, builds a command-line key-value store client called
-`kvs`, which in turn calls into a library called `kvs`.
+`kvs-client`, and a key-value store server called `kvs-server`, both of which in
+turn call into a library called `kvs`. The client speaks to the server over
+a custom protocol.
 
-The `kvs` executable supports the following command line arguments:
+The `kvs-server` executable supports the following command line arguments:
 
-- `kvs set <KEY> <VALUE>`
+- `kvs-server [--addr IP-PORT] [--engine ENGINE-NAME]`
 
-  Set the value of a string key to a string
+  Start the server and begin listening for incoming connections. `--addr`
+  accepts an IP address, either v4 or v6, and a port number, with the format
+  `IP:PORT`. If `--addr` is not specified then listen on `127.0.0.1:4000`.
 
-- `kvs get <KEY>`
+  If `--engine` is specified, then `ENGINE-NAME` must be either "kvs", in which
+  case the built-in engine is used, or "sled", in which case sled is used. If
+  this is the first run (there is no data previously persisted) then the default
+  value is "kvs"; if there is previously persisted data then the default is the
+  engine already in use. If data was previously persisted with a different
+  engine than selected, print an error and exit with a non-zero exit code.
 
-  Get the string value of a given string key
+  Print an error and return a non-zero exit code on failure to bind a socket, if
+  `ENGINE-NAME` is invalid, if `IP-PORT` does not parse as an address.
 
-- `kvs rm <KEY>`
+- `kvs-server -V`
 
-  Remove a given key
+  Print the version.
 
-- `kvs -V`
+The `kvs-client` executable supports the following command line arguments:
 
-  Print the version
+- `kvs-client set <KEY> <VALUE> [--addr IP-PORT]`
 
-The `kvs` library contains a type, `KvStore`, that supports the following
-methods:
+  Set the value of a string key to a string.
 
-- `KvStore::set(&mut self, key: String, value: String)`
+  `--addr` accepts an IP address, either v4 or v6, and a port number, with the
+  format `IP:PORT`. If `--addr` is not specified then connect on
+  `127.0.0.1:4000`.
 
-  Set the value of a string key to a string
+  Print an error and return a non-zero exit code on server error,
+  or if `IP-PORT` does not parse as an address.
 
-- `KvStore::get(&mut self, key: String) -> Option<String>`
+- `kvs-client get <KEY> [--addr IP-PORT]`
 
-  Get the string value of the a string key. If the key does not exist,
-  return `None`.
+  Get the string value of a given string key.
 
-- `KvStore::remove(&mut self, key: String)`
+  `--addr` accepts an IP address, either v4 or v6, and a port number, with the
+  format `IP:PORT`. If `--addr` is not specified then connect on
+  `127.0.0.1:4000`.
 
-  Remove a given key.
+  Print an error and return a non-zero exit code on server error,
+  or if `IP-PORT` does not parse as an address.
 
-The `KvStore` type stores values in-memory, and thus the command-line client can
-do little more than print the version. The `get`/ `set` / `rm` commands will 
-return an "unimplemented" error when run from the command line. Future projects 
-will store values on disk and have a working command line interface.
+- `kvs-client rm <KEY> [--addr IP-PORT]`
 
+  Remove a given string key.
 
-## Installation
+  `--addr` accepts an IP address, either v4 or v6, and a port number, with the
+  format `IP:PORT`. If `--addr` is not specified then connect on
+  `127.0.0.1:4000`.
 
-At this point in your Rust programming experience you should know
-how to install Rust via [rustup].
+  Print an error and return a non-zero exit code on server error,
+  or if `IP-PORT` does not parse as an address. A "key not found" is also
+  treated as an error in the "rm" command.
 
-[rustup]: https://www.rustup.rs
+- `kvs-client -V`
 
-If you haven't already, do so now by running
+  Print the version.
 
-```
-curl https://sh.rustup.rs -sSf | sh
-```
+All error messages should be printed to stderr.
 
-(If you are running Windows then follow the instructions on rustup.rs. Note
-though that you will face more challenges than others during this course, as it
-was developed on Unix. In general, Rust development on Windows is as less
-polished experience than on Unix).
+The `kvs` library contains four types:
 
-Verify that the toolchain works by typing `rustc -V`. If that doesn't work, log
-out and log in again so that changes to the login profile made during
-installation can take effect.
+- `KvsClient` - implements the functionality required for `kvs-client` to speak
+  to `kvs-server`
+- `KvsServer` - implements the functionality to serve responses to `kvs-client`
+  from `kvs-server`
+- `KvsEngine` trait - defines the storage interface called by `KvsServer`
+- `KvStore` - implements by hand the `KvsEngine` trait
+- `SledKvsEngine` - implements `KvsEngine` for the [`sled`] storage engine.
+
+[`sled`]: https://github.com/spacejam/sled
+
+The design of `KvsClient` and `KvsServer` are up to you, and will be informed by
+the design of your network protocol. The test suite does not directly use either
+type, but only exercises them via the CLI.
+
+The `KvsEngine` trait supports the following methods:
+
+- `KvsEngine::set(&mut self, key: String, value: String) -> Result<()>`
+
+  Set the value of a string key to a string.
+
+  Return an error if the value is not written successfully.
+
+- `KvsEngine::get(&mut self, key: String) -> Result<Option<String>>`
+
+  Get the string value of a string key.
+  If the key does not exist, return `None`.
+
+  Return an error if the value is not read successfully.
+
+- `KvsEngine::remove(&mut self, key: String) -> Result<()>`
+
+  Remove a given string key.
+
+  Return an error if the key does not exit or value is not read successfully.
+
+When setting a key to a value, `KvStore` writes the `set` command to disk in
+a sequential log. When removing a key, `KvStore` writes the `rm` command to
+the log. On startup, the commands in the log are re-evaluated and the
+log pointer (file offset) of the last command to set each key recorded in the
+in-memory index.
+
+When retrieving a value for a key with the `get` command, it searches the index,
+and if found then loads from the log, and evaluates, the command at the
+corresponding log pointer.
+
+When the size of the uncompacted log entries reach a given threshold, `KvStore`
+compacts it into a new log, removing redundant entries to reclaim disk space.
+
 
 
 ## Project setup
 
-You will do the work for this project in your own git repository, with your own
-Cargo project. You will import the test cases for the project from the [source
-repository for this course][course].
+Continuing from your previous project, delete your previous `tests` directory and
+copy this project's `tests` directory into its place. This project should
+contain a library named `kvs`, and two executables, `kvs-server` and
+`kvs-client`. <!-- TODO explain how to reconcile the two bins with the existing
+code -->
 
-[course]: https://github.com/pingcap/talent-plan
-
-Note that within that repository, all content related to this course is within
-the `rust` subdirectory. You may ignore any other directories.
-
-The projects in this course contain both libraries and executables. They are
-executables because we are developing an application that can be run. They are
-libraries because the supplied test cases must link to them.
-
-We'll use the same setup for each project in this course.
-
-The directory layout we will use is:
-
-```
-├── Cargo.toml
-├── src
-│   ├── bin
-│   │   └── kvs.rs
-│   └── lib.rs
-└── tests
-    └── tests.rs
-```
-
-The `Cargo.toml`, `lib.rs` and `kvs.rs` files look as follows:
-
-`Cargo.toml`:
-
-```toml
-[package]
-name = "kvs"
-version = "0.1.0"
-authors = ["Brian Anderson <andersrb@gmail.com>"]
-description = "A key-value store"
-edition = "2018"
-```
-
-`lib.rs`:
-
-```rust
-// just leave it empty for now
-```
-
-`kvs.rs`:
-
-```rust
-fn main() {
-    println!("Hello, world!");
-}
-```
-
-The author should be yourself, but the name needs to be `kvs` in order for the
-test cases to work. That's because the project name is also the name of the
-library it contains. Likewise the name of the binary (the command line
-application) needs to be `kvs`. In the above setup it will be `kvs` implicitly
-based on the file name, but you could name the file whatever you wanted by
-putting the appropriate information in the manifest (`Cargo.toml`).
-
-You may set up this project with `cargo new --lib`, `cargo init --lib` (in a
-clean directory), or manually. You'll probably also want to initialize a git
-repository in the same directory.
-
-Finally, the `tests` directory is copied from the course materials. In this case,
-copy from the course repository the file `rust/projects/project-1/tests`
-into your own repository, as `tests`.
-
-At this point you should be able to run the program with `cargo run`.
-
-_Try it now._
-
-You are set up for this project and ready to start hacking.
-
-
-## Part 1: Make the tests compile
-
-You've been provided with a suite of unit tests in `tests/tests.rs`. Open it up
-and take a look.
-
-_Try to run the tests with `cargo test`._ What happens? Why?
-
-Your first task for this project is to make the tests _compile_. Fun!
-
-If your project is like mine you probably saw a huge spew of build errors. Look
-at the first few. In general, when you see a bunch of errors, the first are the
-most important &mdash; `rustc` will keep trying to compile even after hitting
-errors, so errors can cascade, the later ones being pretty meaningless. Your
-first few errors probably look like:
-
-```
-error[E0433]: failed to resolve: use of undeclared type or module `assert_cmd`
- --> tests/tests.rs:1:5
-  |
-1 | use assert_cmd::prelude::*;
-  |     ^^^^^^^^^^ use of undeclared type or module `assert_cmd`
-
-error[E0432]: unresolved import
- --> tests/tests.rs:3:5
-  |
-3 | use predicates::str::contains;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
-```
-
-(If you are seeing something else, please file an issue).
-
-These two errors are quite hard to diagnose to a new Rust programmer so I'll
-just tell you what's going on here: you are missing [dev-dependency] crates
-in your manifest.
-
-[dev-dependency]: https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#development-dependencies
-
-For this project your `Cargo.toml` file needs to contain these lines:
+You need the following dev-dependencies in your `Cargo.toml`:
 
 ```toml
 [dev-dependencies]
-assert_cmd = "0.11.0"
+assert_cmd = "0.11"
+criterion = "0.2.11"
 predicates = "1.0.0"
+rand = "0.6.5"
+tempfile = "3.0.7"
+walkdir = "2.2.7"
 ```
 
-The details of these dependencies are not important to you completing the
-project, but you might want to investigate them on your own. We didn't tell you
-about the need for dev-deps earlier just so you would experience these errors
-yourself. In future projects, the setup text will tell you the dev-deps you
-need.
+As with previous projects, add enough definitions that the test suite builds.
 
-One quick note: how can you figure out that these errors are due to missing
-dependencies in your manifest and not due to errors in your source code? Here's
-one big clue, from the error shown previously:
 
-```
-1 | use assert_cmd::prelude::*;
-  |     ^^^^^^^^^^ use of undeclared type or module `assert_cmd`
-```
+## Part 1: Command line parsing
 
-In `use` statements the first path element is always the name of a crate. The
-exception to this is when the first path element references a name that was
-previously brought into scope with _another_ `use` statement. In other words, if
-there had been another `use` statement in this file like `use foo::assert_cmd`,
-then use `assert_cmd::prelude::*` would refer to _that_ `assert_cmd`. There is
-more that could be said about this but we shouldn't go deeper into the nuances
-of path resolution here. Just know that, in general, in a `use` statement, if
-the first element in the path isn't found (i.e. cannot be resolved), the problem
-is probably that the crate hasn't been named in the manifest.
+There's little new about the command line parsing in this project compared to
+previous projects. The `kvs-client` binary accepts the same command line
+arguments as in previous projects. And now `kvs-server` has its own set of
+command line arguments to handle, as described previously in the spec.
 
-Whew. That is an unfortunate diversion in the very first project. But hopefully
-instructive.
+_Stub out the `kvs-server` command line handling._
 
-_Go ahead and add the appropriate dev-deps to your manifest._
 
-Try again to run the tests with `cargo test`. What happens? Why?
+## Part 2: Logging
 
-Hopefully those _previous_ errors are gone. Now the errors are all about the
-test cases not being able to find all the code it expects in your own code.
+Production server applications tend to have robust and configurable logging. So
+now we're going to add logging to `kvs-server`, and as we continue will look
+for useful information to log. During development it is common to use logging
+at the `debug!` and `trace!` levels for "println debugging".
 
-_So now your task is to outline all the types, methods, etc. necessary to make
-the tests build._
+There are two prominent logging systems in Rust: [`log`] and [`slog`]. Both
+export similar macros for logging at different levels, like `error!`, `info!`
+etc. Both are extensible, supporting different backends, for logging to the
+console, logging to file, logging to the system log, etc.
 
-During this course you will read the test cases a lot. The test cases tell you
-exactly what is expected of your code. If the text and the tests don't agree,
-the tests are right (file a bug!). This is true in the real world too. The test
-cases demonstrate what the software _actually_ does. They are reality. Get used
-to reading test cases.
+[`log`]: https://docs.rs/log/
+[`slog`]: https://docs.rs/slog/
 
-And, bonus &mdash; test cases are often the poorest-written code in any project,
-sloppy and undocumented.
+The major difference is that `log` is fairly simple, logging only formatted
+strings; `slog` is feature-rich, and supports "structured logging", where log
+entries are typed and serialized in easily-parsed formats.
 
-Again, try to run the tests with `cargo test`. What happens? Why?
+`log` dates from the very earliest days of Rust, where it was part of the
+compiler, then part of the standard library, and finally released as its own
+crate. It is maintained by the Rust Project. `slog` is newer and maintained
+independently. Both are widely used.
 
-In `src/lib.rs` write the type and method definitions necessary to make `cargo
-test --no-run` complete successfully. Don't write any method bodies yet &mdash;
-instead write `panic!()`. This is the way to sketch out your APIs without
-knowing or caring about the implementation (there's also the [`unimplemented!`]
-macro, but since typing it is longer, it's common to simply use `panic!`, a
-possible exception being if you are releasing software that contains
-unimplemented methods).
+For both systems, one needs to select a "sink" crate, one that the logger
+sends logs to for display or storage.
 
-[`unimplemented!`]: https://doc.rust-lang.org/std/macro.unimplemented.html
+_Read about both of them, choose the one that appeals to you, add them as
+dependencies, then modify `kvs-server` to initialize logging on startup, prior
+to command-line parsing._ Set it up to output to stderr (sending the logs
+elsewhere additionally is fine, but they must go to stderr to pass the tests in
+this project).
 
-_Do that now before moving on._
+On startup log the server's version number. Also log the configuration. For now
+that means the IP address and port, and the name of the storage engine.
 
-Once that is done, if you run `cargo test` (without `--no-run`),
-you should see that some of your tests are failing, like
 
-```
-    Finished dev [unoptimized + debuginfo] target(s) in 2.32s
-     Running target/debug/deps/kvs-b03a01e7008067f6
+## Part 3: Client-server networking setup
 
-running 0 tests
+Next we're going to set up the networking. For this project you are going to be
+using the basic TCP/IP networking APIs in `std::net`: [`TcpListener`] and
+[`TcpStream`].
 
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+[`TcpListener`]: https://doc.rust-lang.org/std/net/struct.TcpListener.html
+[`TcpStream`]: https://doc.rust-lang.org/std/net/struct.TcpStream.html
 
-     Running target/debug/deps/kvs-a3b5a004932c6715
+For this project, the server is synchronous and single-threaded. That means that
+you will listen on a socket, then accept connections, and execute and respond to
+commands one at a time. In the future we will re-visit this decision multiple
+times on our journey toward an asynchronous, multi-threaded, and
+high-performance database.
 
-running 0 tests
+Think about your manual testing workflow. Now that there are two executables to
+deal with, you'll need a way to run them both at the same time. If you are like
+many, you will use two terminals, running `cargo run --bin kvs-server` in
+one, where it runs until you press CTRL-D, and `cargo run --bin kvs-client`
+in the other.
 
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+This is a good opportunity to use the logging macros for debugging. Go ahead and
+log information about every accepted connection.
 
-     Running target/debug/deps/tests-5e1c2e20bd1fa377
+_Before thinking about the protocol, modify `kvs-server` to listen
+for and accept connections, and `kvs-client` to initiate connections._
 
-running 13 tests
-test cli_get ... FAILED
-test cli_invalid_get ... FAILED
-test cli_invalid_rm ... FAILED
-test cli_invalid_set ... FAILED
-test cli_no_args ... FAILED
-test cli_invalid_subcommand ... FAILED
-... more lines of spew ...
-```
 
-... followed by many more lines. That's great! That's all we need right now.
-You'll make those pass throughout the rest of this project.
+## Part 4: Implementing commands across the network
 
+In the last project you defined the commands your database accepts, and learned
+how to serialize and deserialize them to and from the log with `serde`.
 
-### Aside: Testing tips
+<!-- the above is to hint that they already have the two tools they need -->
 
-If you look again at the output from `cargo test` you'll see something
-interesting:
+Now it's time to implement the key/value store over the network, remotely
+executing commands that until now have been implemented within a single process.
+As with the file I/O you worked on in the last project to create the log, you
+will be serializing and streaming commands with the `Read` and `Write` traits.
 
-```
-     Running target/debug/deps/kvs-b03a01e7008067f6
+You are going to design a network protocol. There are a number of ways to get
+data in and out of a TCP stream, and a number of decisions to make. Is it a
+text-based protocol, binary? How is the data translated from its format in
+memory to its format byte-stream format? Is there a single request per
+connection, or many?
 
-running 0 tests
+Keep in mind that it must support successful results and errors, and there are
+two kinds of errors now: the ones generated by your storage engine, as well as
+network errors.
 
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+All the details of the protocol are up to you. The test suite does not care at
+all how the data gets from one end to the other, just that the results are
+correct.
 
-     Running target/debug/deps/kvs-a3b5a004932c6715
+_Write your network protocol._
 
-running 0 tests
 
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+<!-- ## Part 5: More error handling
 
-     Running target/debug/deps/tests-5e1c2e20bd1fa377
+TODO write this section
 
+- handle error responses by converting errors to a serializable format
+- add context to errors
+- replace `fn main() -> Result` with custom error reporting
+-->
 
-running 13 tests
-test cli_get ... FAILED
-```
 
-Cargo says "Running ..." three times. And the first two of those times it in
-fact did not run any tests. And furthermore, if all those tests hadn't failed,
-cargo would have run _yet another_ set of tests.
+## Part 5: Pluggable storage engines
 
-Why is this?
+Your database has a storage engine, `KvStore`, implemented by you.
+Now you are going to add a second storage engine.
 
-Well, it is because there are many places you can write tests in Rust:
+There are multiple reasons to do so:
 
-- Inside the source of your library
-- Inside the source of each of your binaries
-- Inside each test file
-- In the doc comments of your library
+- Different workloads require different performance characteristics. Some
+  storage engines may work better than other based on the workload.
 
-And cargo doesn't know which of these actually contain tests, so it just builds
-and runs them all.
+- It creates a familiar framework for comparing different backends.
 
-So those two sets of empty tests:
+- It gives us an excuse to create and work with traits.
 
-```
-     Running target/debug/deps/kvs-b03a01e7008067f6
-running 0 tests
-     Running target/debug/deps/kvs-a3b5a004932c6715
-running 0 tests
-```
+- It gives us an excuse to write some comparative benchmarks!
 
-Well, this is a bit confusing, but one of them is your library, compiled for
-testing, and the other is your binary, compiled for testing. Neither contains
-any tests. The reason both have "kvs" in their names is because both your
-library and your binary are called "kvs".
+So you are going to _extract_ a new trait, `KvsEngine`, from the `KvStore`
+interface. This is a classic _refactoring_, where existing code is transformed
+into a new form incrementally. When refactoring you will generally want to break
+the work up into the smallest changes that will continue to build and work.
 
-All this test spew gets annoying, and there are two ways to quiet cargo:
-with command line arguments, and with changes to the manifest.
+Here is the API you need to end up with:
 
-Here are the relevant command line flags:
+- `trait KvsEngine` has `get`, `set` and `remove` methods with the same signatures
+  as `KvStore`.
 
-- `cargo test --lib` &mdash; test just the tests inside the library
-- `cargo test --doc` &mdash; test the doc tests in the library
-- `cargo test --bins` &mdash; test all the bins in the project
-- `cargo test --bin foo` &mdash; test just the `foo` bin
-- `cargo test --test foo` &mdash; test the tests in test file `foo`
+- `KvStore` implements `KvsEngine`, and no longer has `get`, `set` and `remove`
+  methods of its own.
 
-These are convenient to quickly hide test spew, but if a project doesn't contain
-a type of tests it's probably best to just never deal with them. If you recall
-from The Cargo Book's [manifest description][m], there are two keys that can be
-applied: `test = false` and `doctest = false`. They go in the `[lib]` and
-`[[bin]]` sections. Consider updating your manifest.
+- There is a new implementation of `KvsEngine`, `SledKvsEngine`. You need to fill
+  its `get` and `set` methods using the `sled` library later.
 
-[m]: https://doc.rust-lang.org/cargo/reference/manifest.html
+It's likely that you have already stubbed out the definitions for these if your
+tests are building. _Now is the time to fill them in._ Break down your
+refactoring into an intentional sequence of changes, and make sure the project
+continues to build and pass previously-passing tests before continuing.
 
-Another quick thing to do if you haven't before. Run this:
+As one final step, you need to consider what happens when `kvs-server` is
+started with one engine, is killed, then restarted with a different engine. This
+case can only result in an error, and you need to figure out how to detect the
+case to report the error. The test `cli_wrong_engine` reflects this scenario.
 
-```
-cargo test -- --help
-```
 
-Just do it. It's cool. What you are seeing there is the help information for
-_the executable containing your compiled tests_ (that `--` surrounded by spaces
-tells cargo to pass all following arguments to the test binary). It's not
-the same info displayed when you run `cargo test --help`. They are two different
-things: cargo is running your test bin by passing it all these various arguments.
+## Part 6: Benchmarking
 
-If you want you can do exactly the same thing. Let's go back one more time
-to our `cargo test` example. We saw this line:
+As the course progresses we will increasingly concern ourselves with the
+performance of the database, exploring the impact of different architectures.
+You are encouraged to go beyond the model described herein and experiment with
+your own optimizations.
 
-```
-     Running target/debug/deps/kvs-b03a01e7008067f6
-```
+Performance work requires benchmarking, so now we're going to get started
+on that. There are many ways to benchmark databases, with standard test
+suites like [ycsb] and [sysbench]. In Rust benchmarking starts with
+the builtin tooling, so we will start there.
 
-That's cargo telling you the name of the test binary. You can run it
-yourself, like `target/debug/deps/kvs-b03a01e7008067f6 --help`.
+[ycsb]: https://github.com/brianfrankcooper/YCSB
+[sysbench]: https://github.com/akopytov/sysbench
 
-The `target` directory contains lots of cool stuff. Digging through it can teach
-you a lot about what the Rust toolchain is actually doing.
+Cargo supports benchmarking with `cargo bench`. The benchmarks may either be
+written using Rust's built in benchmark harness, or an external one.
 
-In practice, particularly with large projects, you won't run the entire test
-suite while developing a single feature. To narrow down the set of tests to the
-ones we care about, run the following:
+The built-in harness creates benchmarks from functions with the `#[bench]`
+attribute. It cannot be used on the Rust stable channel though, and is only
+documented briefly in [the unstable book][tb] and the [`test` crate docs][tc].
+It is though widely used throughout the Rust ecosystem &mdash; crates that use
+it, even if they compile with stable releases, do benchmarking with nightly
+releases.
 
-```
-cargo test cli_no_args
-```
+[tb]: https://doc.rust-lang.org/stable/unstable-book/library-features/test.html
+[tc]: https://doc.rust-lang.org/stable/test/index.html
 
-This will run the test called `cli_no_args`. In fact, it will run any test
-containing `cli_no_args` in the name, so if, e.g., you want to run all the CLI
-tests, you can run `cargo test cli`. That's probably how you will be running the
-tests yourself as you work through the project, otherwise you will be distracted
-by the many failing tests that you have not yet fixed. Unfortunately that
-pattern is a simple substring match, not something fancy like a regular
-expression.
+That system though is effectively deprecated &mdash; it is not being updated and
+will seemingly never be promoted to the stable release channel.
 
-<!-- TODO: need an excuse to explain `cargo test --test suite`.
-Per https://github.com/pingcap/talent-plan/pull/129#issuecomment-498477590
-we might organize the the test suite into test files by project section.
-Then we could talk about `cargo test --test part-1` -->
+There are better benchmark harnesses for Rust anyway. The one you will use is
+[criterion]. And you will use it to satisfy your curiosity about the
+performance of your `kvs` engine compared to the `sled` engine.
 
-Note that, as of this writing, the test cases for the projects in this course
-are not organized in a way that makes it clear which test cases should complete
-for any particular section of a project &mdash; only that by the end the entire
-suite should pass. You'll need to read the names and implementations of the
-tests to figure out which you _think_ should pass at any particular time.
+These benchmarking tools work by defining a benchmarking function, and within
+that function iterating through a loop that performs the operation to be
+benchmarking. The benchmarking tool will iterate as many times as it needs to in
+order to know the duration of the operation with statistical significance.
 
+See this basic example from the criterion guide:
 
-## Part 2: Accept command line arguments
-
-The key / value stores throughout this course are all controlled through a
-command-line client. In this project the command-line client is very simple
-because the state of the key-value store is only stored in memory, not persisted
-to disk.
-
-In this part you will make the `cli_*` test cases pass.
-
-Recall how to run individual test cases from previous sections
-of 
-
-Again, the interface for the CLI is:
-
-- `kvs set <KEY> <VALUE>`
-
-  Set the value of a string key to a string
-
-- `kvs get <KEY>`
-
-  Get the string value of a given string key
-
-- `kvs rm <KEY>`
-
-  Remove a given key
-
-- `kvs -V`
-
-  Print the version
-
-In this iteration though, the `get` and `set` commands will print to stderr the
-string, "unimplemented", and exiting with a non-zero exit code, indicating an
-error.
-
-You will use the `clap` crate to handle command-line arguments.
-
-_Find the latest version of the `clap` crate and add it to your dependencies in
-`Cargo.toml`._ There are a number of ways to find and import a crate, but
-pro-tip: check out the built-in [`cargo search`] and the plug-in [`cargo edit`].
-
-[`cargo search`]: https://doc.rust-lang.org/cargo/commands/cargo-search.html
-[`cargo edit`]: https://github.com/killercup/cargo-edit
-
-<!-- note: above is basically assuming that by now they know about
-crates.io, so expanding their world with the two CLI commands. -->
-
-<i>Next use [crates.io], [lib.rs], or [docs.rs] to find the documentation for
-the `clap` crate, and implement the command line interface such that the `cli_*`
-test cases pass.</i>
-
-<!-- note: above casually mentioning lib.rs and docs.rs to make sure they are aware. -->
-
-When you are testing, use `cargo run`; do not run the executable directly from
-the `target/` directory. When passing arguments to the program, separate them
-from the `cargo run` command with two dashes, `--`, like `cargo run -- get
-key1`.
-
-[crates.io]: https://crates.io
-[lib.rs]: https://lib.rs
-[docs.rs]: https://docs.rs
-
-
-## Part 3: Cargo environment variables
-
-When you set up `clap` to parse your command line arguments, you probably set
-the name, version, authors, and description (if not, do so). This information is
-redundant w/ values provided in `Cargo.toml`. Cargo sets environment variables
-that can be accessed through Rust source code, at build time.
-
-_Modify your `clap` setup to set these values from standard cargo environment
-variables._
-
-
-## Part 4: Store values in memory
-
-Now that your command line scaffolding is done, let's turn to the implementation
-of `KvStore`, and make the remaining test cases pass.
-
-The behavior of `KvStore`'s methods are fully-defined through the test cases
-themselves &mdash; you don't need any further description to complete the
-code for this project.
-
-_Make the remaining test cases pass by implementing methods on `KvStore`._
-
-
-## Part 5: Documentation
-
-You have implemented the project's functionality, but there are still a few more
-things to do before it is a polished piece of Rust software, ready for
-contributions or publication.
-
-First, public items should generally have doc comments.
-
-Doc comments are displayed in a crate's API documentation. API documentation can
-be generated with the command, `cargo doc`, which will render them as HTML to
-the `target/doc` folder. Note though that `target/doc` folder does not contain
-an `index.html`. In this project, your crate's documentation will be located at
-`target/doc/kvs/index.html`. You can launch a web browser at that location with
-`cargo doc --open`. `cargo doc --open` doesn't always work, e.g. if you are
-ssh'd into a cloud instance. If it doesn't though the command will print the
-name of the html file it couldn't open &mdash; useful simply for finding the
-location of your API docs.
-
-[Good doc comments][gdc] do not just repeat the name of the function, nor repeat
-information gathered from the type signature. They explain why and how one would
-use a function, what the return value is on both success and failure, error and
-panic conditions. The library you have written is very simple so the
-documentation can be simple as well. If you truly cannot think of anything
-useful to add through doc comments then it can be ok to not add a doc comment
-(this is a matter of preference). With no doc comments it should be obvious how
-the type or function is used from the name and type signature alone.
-
-Doc comments contain examples, and those examples can be tested with `cargo test
---doc`.
-
-_Add `#![deny(missing_docs)]` to the top of `src/lib.rs` to enforce that all
-public items have doc comments. Then add doc comments to the types and methods
-in your library. Follow the [documentation guidelines][gdc]. Give each an
-example and make sure they pass `cargo test --doc`._
-
-[gdc]: https://rust-lang-nursery.github.io/api-guidelines/documentation.html
-
-
-## Part 6: Ensure good style with `clippy` and `rustfmt`
-
-[`clippy`] and [`rustfmt`] are tools for enforcing common Rust style. `clippy`
-helps ensure that code uses modern idioms, and prevents patterns that commonly
-lead to errors. `rustfmt` enforces that code is formatted consistently. It's not
-necessary right now, but you might click those links and read their
-documentation. They are both sophisticated tools capable of much more than
-described below.
-
-[`clippy`]: https://github.com/rust-lang/rust-clippy
-[`rustfmt`]: https://github.com/rust-lang/rustfmt
-
-Both tools are included in the Rust toolchain, but not installed by default.
-They can be installed with the following [`rustup`] commands:
-
-```
-rustup component add clippy
-rustup component add rustfmt
+```rust
+fn criterion_benchmark(c: &mut Criterion) {
+    c.bench_function("fib 20", |b| {
+	    b.iter(|| {
+		    fibonacci(20)
+		});
+	});
+}
 ```
 
-[`rustup`]: https://github.com/rust-lang/rustup.rs/blob/master/README.md
+The call to `bench_function` defines the benchmark, and the call to `iter`
+defines the code that is run for the benchmark. Code before and after the call
+to `iter` is not timed.
 
-_Do that now._
+[criterion]: https://docs.rs/criterion
 
-Both tools are invoked as cargo subcommands, `clippy` as `cargo clippy` and
-`rustfmt` as `cargo fmt`. Note that `cargo fmt` modifies your source code, so
-commit your work before making before running it to avoid accidentally making
-unwanted changes, after which you can either include the changes as part of the
-previous commit with `git commit --amend`. Or just commit them as their own
-formatting commit &mdash; it's common to rust both `clippy` and `rustfmt` after
-a series of commits, e.g. before submitting a pull request.
+Prepare for writing benchmarks by creating a file called `benches/benches.rs`.
+Like `tests/tests.rs`, cargo will automatically find this file and compile it as
+a benchmark.
 
-_Run `cargo clippy` against your project and make any suggested changes. Run
-`cargo fmt` against your project and commit any changes it makes._
+Start by writing the following benchmarks:
 
-It's worth reading the [`rustup`], [`clippy`], and [`rustfmt`] documentation, as
-these are tools you will be using frequently.
+- `kvs_write` - With the kvs engine, write 100 values with random keys of length
+  1-100000 bytes and random values of length 1-100000 bytes.
 
-Congratulations, you are done with your first project! If you like you
-may complete the remaining "extensions". They are optional.
+- `sled_write`- With the sled engine, write 100 values with random keys of
+  length 1-100000 bytes and random values of length 1-100000 bytes.
 
-<!-- TODO add text about discovering components, and filtering with rg -->
+- `kvs_read` - With the kvs engine, read 1000 values from previously written keys,
+  with keys and values of random length.
+
+- `sled_read` - With the sled engine, read 1000 values from previously written keys,
+  with keys and values of random length.
+
+(As an alternative to writing 4 benchmarks, you may also choose to write 2
+benchmarks parameterized over the engine, as [described in the criterion
+manual][pb]).
+
+[pb]: https://bheisler.github.io/criterion.rs/book/user_guide/benchmarking_with_inputs.html
+
+These are underspecified, and there's a fair bit of nuance to implementing them
+in a useful way. We need to consider at least three factors:
+
+- What code should be timed (and be written inside the benchmark loop), and what
+  code should not (and be written outside the benchmark loop)?
+
+- How to make the loop run identically for each iteration, despite using
+  "random" numbers.
+
+- In the "read" benchmarks, how to read from the same set of "random" keys
+  that were written previously.
+
+These are all inter-related: some code needs to be carefully selected as
+un-timed setup code, and the seed values for random number generators need
+to be re-used appropriately.
+
+In all cases, operations that may return errors should assert (with `assert!`)
+that they did not return an error; and in the read case, "get" operations should
+assert that the key was found.
+
+Random numbers can be generated with the [`rand`] crate.
+
+[`rand`]: https://docs.rs/crate/rand/
+
+Once you have your benchmarks, run them with `cargo bench`.
+
+_Write the above benchmarks, and compare the results between `kvs` and `sled`._
+
+_Note: please run the benchmarks on an otherwise unloaded machine. Benchmark
+results are very sensitive to the environment they are run in, and while the
+criterion library does its best to compensate for "noise", benchmarks are best
+done on a clean machine without other active processes. If you have a spare
+machine just for development, use that. If not, an AWS or other cloud instance
+may produce more consistent results than your local desktop._
+
+<!-- TODO: criterion output example -->
 
 Nice coding, friend. Enjoy a nice break.
 
 
----
+<!-- TODO
+## Extension 1: Signal handling
 
-
-<!--
-
-TODO ## Aside: exploring Rust toolchain components
-
-rust component list
-rust component list | rg -v std # opportunity to introduce rg
-
+- Shutdown on KILL
+- TODO need to figure out how to interrupt the tcp listener
 -->
 
-
-## Extension 1: `structopt`
-
-In this project we used `clap` to parse command line arguments. It's typical to
-represent a program's parsed command line arguments as a struct, perhaps named
-`Config` or `Options`. Doing so requires calling the appropriate methods on
-`clap`'s `ArgMatches` type. Both steps, for larger programs, require _a lot_ of
-boilerplate code. The `structopt` crate greatly reduces boilerplate by allowing
-you to define a `Config` struct, annotated to automatically produce a `clap`
-command line parser that produces that struct. Some find this approach nicer
-than writing the `clap` code explicitly.
-
-_Modify your program to use `structopt` for parsing command line
-arguments instead of using `clap` directly._
-
-
 <!--
+
+## Background reading ideas
+
+- log docs
+- slog docs
+- TCP/IP basics
+- refactoring overview
+- traits and impl trait
+- https://bheisler.github.io/post/benchmarking-with-criterion-rs/
+- general overview of benchmarking
+- conditional compilation of engines?
 
 ## TODOs
 
-- set the binary's name
-- ask about pros / cons of this main.rs setup
-  - explain why we're doing this setup
-    (makes main testable) though this will
-	become evident as they work through the tests
-- doc comments
-- make sure there's enough background reading to support the project
-- resources (whether / where to put these?)
-  - https://docs.rs/clap/2.32.0/clap/
-  - https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo
-  - https://rust-lang-nursery.github.io/api-guidelines/documentation.html#documentation
-  - https://doc.rust-lang.org/std/macro.env.html
-  - https://github.com/rust-lang/rust-clippy/blob/master/README.md
-  - https://github.com/rust-lang/rustfmt/blob/master/README.md
-- do range lookups (`scan`)?
-- README.md?
-- GitHub CI setup?
-- Add suggestions to read clippy and rustfmt documentation
-- Make clippy / rustfmt docs readings?
+- consider `Kvs_Engine_` trait vs `Kv_Store_` impl
 
 -->
