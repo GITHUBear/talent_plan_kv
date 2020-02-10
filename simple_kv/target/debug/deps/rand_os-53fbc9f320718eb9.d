@@ -1,0 +1,9 @@
+/Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/target/debug/deps/rand_os-53fbc9f320718eb9.rmeta: /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rand_os-0.1.3/src/lib.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rand_os-0.1.3/src/dummy_log.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rand_os-0.1.3/src/macos.rs
+
+/Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/target/debug/deps/librand_os-53fbc9f320718eb9.rlib: /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rand_os-0.1.3/src/lib.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rand_os-0.1.3/src/dummy_log.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rand_os-0.1.3/src/macos.rs
+
+/Users/dimdew/CLionProjects/talent_plan_kv/simple_kv/target/debug/deps/rand_os-53fbc9f320718eb9.d: /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rand_os-0.1.3/src/lib.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rand_os-0.1.3/src/dummy_log.rs /Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rand_os-0.1.3/src/macos.rs
+
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rand_os-0.1.3/src/lib.rs:
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rand_os-0.1.3/src/dummy_log.rs:
+/Users/dimdew/.cargo/registry/src/github.com-1ecc6299db9ec823/rand_os-0.1.3/src/macos.rs:
