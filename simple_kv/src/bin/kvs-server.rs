@@ -12,6 +12,7 @@ use structopt::StructOpt;
 
 use env_logger::fmt::Target;
 use log::LevelFilter;
+use simple_kv::thread_pool::{NaiveThreadPool, ThreadPool};
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -67,8 +68,10 @@ fn get_engine_name_from_file() -> Result<Option<Engine>> {
     }
 }
 
-fn run_kv_server<E: KvsEngine>(engine: E, addr: SocketAddr) -> Result<()> {
-    let mut server = KvServer::new(engine, addr);
+fn run_kv_server<E: KvsEngine, P: ThreadPool>(engine: E,
+                                              addr: SocketAddr,
+                                              pool: P) -> Result<()> {
+    let mut server = KvServer::new(engine, addr, pool);
     Ok(server.run()?)
 }
 
@@ -99,14 +102,15 @@ fn main() -> Result<()> {
     let engine = opt.engine.unwrap();
     fs::write(current_dir()?.join("engine"), format!("{:?}", engine))?;
 
+    let pool = NaiveThreadPool::new(4)?;
     match engine {
         Engine::kvs => {
             let engine = KvStore::open(&current_dir()?)?;
-            run_kv_server(engine, opt.addr)?;
+            run_kv_server(engine, opt.addr, pool)?;
         },
         Engine::sled => {
             let engine = SledStore::new(sled::open(current_dir()?)?);
-            run_kv_server(engine, opt.addr)?;
+            run_kv_server(engine, opt.addr, pool)?;
         },
     }
 
