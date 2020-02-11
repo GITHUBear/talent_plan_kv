@@ -1,6 +1,6 @@
 use std::{
     collections::{
-        HashMap, BTreeMap,
+        BTreeMap,
     },
     path::{ self, PathBuf, Path },
     io::{ self, BufWriter, BufReader, Write, Read, Seek, SeekFrom },
@@ -16,6 +16,7 @@ use serde::{
     Serialize, Deserialize,
 };
 use serde_json::{ self, Deserializer };
+use crossbeam_skiplist::SkipMap;
 use crate::{KvsError, Result};
 use super::KvsEngine;
 
@@ -92,6 +93,7 @@ impl<R: Read + Seek> BufReaderWithPos<R> {
 /// `gen` is the generation number of log file.
 /// `pos` is the offset of the specified `gen` log file.
 /// `len` is the length of the cmd.
+#[derive(Clone)]
 struct CmdPos {
     gen: u64,
     pos: u64,
@@ -106,14 +108,15 @@ struct KvStoreReader {
 }
 
 impl KvStoreReader {
+    // Close stale handle before read to remove stale log files.
     fn close_stale_handle(&self) {
         let mut readers = self.readers.borrow_mut();
         while !readers.is_empty() {
-            let first_key = readers.keys().next().unwrap();
+            let first_key = *(readers.keys().next().unwrap());
             if self.safe_point.load(Ordering::SeqCst) <= (first_key as usize) {
                 break;
             }
-            readers.remove(first_key);
+            readers.remove(&first_key);
         }
     }
 
@@ -146,49 +149,29 @@ impl Clone for KvStoreReader {
 struct KvStoreWriter {
     reader: KvStoreReader,
     writer: BufWriterWithPos<File>,
-    current_gen: u64,
+    cur_gen: u64,
     compaction_size: u64,
     path: Arc<PathBuf>,
-    key_gen_map: Arc<HashMap<String, CmdPos>>,
-}
-
-pub struct KvStore {
-    /// `db_path` represents the dir path of log files.
-    db_path: Arc<PathBuf>,
-    /// `key_gen_map` is an in-memory map that maintains
-    /// a map between specified `key` and cmd position in disk.
-    key_gen_map: Arc<Mutex<HashMap<String, CmdPos>>>,
-    /// current generation number.
-    cur_gen: Arc<AtomicUsize>,
-    /// Writer of current `cur_gen` log file.
-    writer: BufWriterWithPos<File>,
-    /// Readers of log files in `db_path`
-    readers: HashMap<u64, BufReaderWithPos<File>>,
-    /// Compaction threshold
+    key_gen_map: Arc<SkipMap<String, CmdPos>>,
     compaction_threshold: u64,
-    /// Compaction Size is the size of stale data in kvs
-    compaction_size: u64,
 }
 
-impl KvsEngine for KvStore {
-    /// Set the value of a string key to a string.
-    ///
-    /// If the key already exists, the previous value will be overwritten.
-    fn set(&self, key: String, value: String) -> Result<()> {
-        let store = self.core.lock().unwrap();
+impl KvStoreWriter {
+    fn set(&mut self, key: String, value: String) -> Result<()> {
         let cmd = Cmd::Set { key, value };
-        let pos = store.writer.pos;
-        serde_json::to_writer(&mut store.writer, &cmd)?;
+        let pos = self.writer.pos;
+        serde_json::to_writer(&mut self.writer, &cmd)?;
         self.writer.flush()?;
 
         if let Cmd::Set { key, value: _ } = cmd {
-            if let Some(old_cmd_pos) = self.key_gen_map.insert(key, CmdPos {
+            if let Some(old_cmd_pos) = self.key_gen_map.get(&key) {
+                self.compaction_size += old_cmd_pos.value().len;
+            }
+            self.key_gen_map.insert(key, CmdPos {
                 gen: self.cur_gen,
                 pos,
                 len: self.writer.pos - pos,
-            }) {
-                self.compaction_size += old_cmd_pos.len;
-            }
+            });
         }
 
         if self.compaction_size > self.compaction_threshold {
@@ -197,122 +180,159 @@ impl KvsEngine for KvStore {
         Ok(())
     }
 
-    /// Get the string value of a given string key.
-    ///
-    /// Returns `None` if the given key does not exist.
-    fn get(&self, key: String) -> Result<Option<String>> {
-//        if let Some(cmd_pos) = self.key_gen_map.get(&*key) {
-//            let reader = self
-//                .readers
-//                .get_mut(&cmd_pos.gen)
-//                .expect("Cannot find log reader");
-//            reader.seek(SeekFrom::Start(cmd_pos.pos))?;
-//            let cmd_reader = reader.take(cmd_pos.len);
-//            if let Cmd::Set { value, .. } = serde_json::from_reader(cmd_reader)? {
-//                Ok(Some(value))
-//            } else {
-//                Err(KvsError::UndefCmdline)
-//            }
-//        } else {
-//            Ok(None)
-//        }
-        Ok(Some("".to_owned()))
-    }
+    fn remove(&mut self, key: String) -> Result<()> {
+        if self.key_gen_map.contains_key(&key) {
+            let cmd = Cmd::Rm { key };
+            let pos = self.writer.pos;
+            serde_json::to_writer(&mut self.writer, &cmd)?;
+            self.writer.flush()?;
+            if let Cmd::Rm { key } = cmd {
+                let old_cmd = self.key_gen_map.remove(&key).expect("key not found");
+                self.compaction_size += old_cmd.value().len;
+                self.compaction_size += self.writer.pos - pos;
+            }
 
-    /// Remove a given key.
-    fn remove(&self, key: String) -> Result<()> {
-//        if self.key_gen_map.contains_key(&key) {
-//            let cmd = Cmd::Rm { key };
-//            serde_json::to_writer(&mut self.writer, &cmd)?;
-//            self.writer.flush()?;
-//            if let Cmd::Rm { key } = cmd {
-//                let old_cmd = self.key_gen_map.remove(&key).expect("key not found");
-//                self.compaction_size += old_cmd.len;
-//            }
-//            Ok(())
-//        } else {
-//            Err(KvsError::KeyNotFound)
-//        }
-        Ok(())
-    }
-}
-
-impl KvStore {
-    /// Create a `KvStore` with a given `path`.
-    pub fn open(path: &path::Path) -> Result<Self> {
-        let path = path.to_path_buf();
-        fs::create_dir_all(&path)?;
-
-        let mut readers = HashMap::new();
-        let mut key_gen_map = HashMap::new();
-        let mut compaction_size = 0 as u64;
-        let gen_list = get_sorted_gen_list(&path)?;
-        for &gen in &gen_list {
-            let mut reader =
-                BufReaderWithPos::new(File::open(log_path(&path, gen))?)?;
-            compaction_size += load(gen, &mut reader, &mut key_gen_map)?;
-            readers.insert(gen, reader);
+            if self.compaction_size > self.compaction_threshold {
+                self.compaction()?;
+            }
+            Ok(())
+        } else {
+            Err(KvsError::KeyNotFound)
         }
-
-        let cur_gen = *(gen_list.last().unwrap_or(&0)) + 1;
-        let writer = new_log_file(&path, cur_gen, &mut readers)?;
-
-        let core = KvStore {
-            db_path: path,
-            key_gen_map,
-            cur_gen,
-            writer,
-            readers,
-            compaction_threshold: COMPACTION,
-            compaction_size,
-        };
-
-        Ok(KvStore {
-            core: Arc::new(Mutex::new(core)),
-        })
     }
 
-    /// `Compaction` the log files
-    pub fn compaction(&mut self) -> Result<()> {
+    fn compaction(&mut self) -> Result<()> {
         let compaction_gen = self.cur_gen + 1;
         self.cur_gen += 2;
-        self.writer = self.new_log_file(self.cur_gen)?;
-        let mut compaction_writer = self.new_log_file(compaction_gen)?;
+        self.writer = new_log_file(&self.path, self.cur_gen)?;
+        let mut compaction_writer = new_log_file(&self.path, compaction_gen)?;
 
         let mut new_pos = 0;
-        for cmd_pos in self.key_gen_map.values_mut() {
-            let reader = self.readers.get_mut(&cmd_pos.gen)
-                .expect("Cannot find log reader");
-            reader.seek(SeekFrom::Start(cmd_pos.pos))?;
-            let mut reader = reader.take(cmd_pos.len);
-
-            let len = io::copy(&mut reader, &mut compaction_writer)?;
-            *cmd_pos = CmdPos {
-                gen: compaction_gen,
-                pos: new_pos,
-                len,
-            };
-
-            new_pos += len;
+        for entry in self.key_gen_map.iter() {
+            let cmd_pos = entry.value().clone();
+            let cmd = self.reader.read_command(cmd_pos.clone())?;
+            serde_json::to_writer(&mut compaction_writer, &cmd)?;
+            self.key_gen_map.insert(
+                entry.key().clone(),
+                CmdPos {
+                    gen: compaction_gen,
+                    pos: new_pos,
+                    len: cmd_pos.len,
+                }
+            );
+            new_pos += cmd_pos.len;
         }
+        compaction_writer.flush()?;
 
-        let stale_gens: Vec<u64> = self.readers.keys()
-            .filter(|&&num| num < compaction_gen)
-            .map(|&x| x)
+        self.reader.safe_point
+            .store(compaction_gen as usize, Ordering::SeqCst);
+        self.reader.close_stale_handle();
+
+        let stale_gens: Vec<u64> = get_sorted_gen_list(&self.path)?
+            .into_iter()
+            .filter(|&n| n < compaction_gen)
             .collect();
 
         for &gen in &stale_gens {
-            self.readers.remove(&gen);
-            fs::remove_file(log_path(&self.db_path, gen))?;
+            if let Err(e) = fs::remove_file(log_path(&self.path, gen)) {
+                error!("[kvs-engine] File {:?} cannot be remove now: {}", self.path, e);
+            }
         }
 
         self.compaction_size = 0;
 
         Ok(())
     }
+}
 
-    fn new_log_file(&mut self, gen: u64) -> Result<BufWriterWithPos<File>> {
-        new_log_file(&self.db_path, gen, &mut self.readers)
+/// `KvStore` for multi-thread.
+#[derive(Clone)]
+pub struct KvStore {
+    /// `db_path` represents the dir path of log files.
+    db_path: Arc<PathBuf>,
+    /// `key_gen_map` is an in-memory map that maintains
+    /// a map between specified `key` and cmd position in disk.
+    key_gen_map: Arc<SkipMap<String, CmdPos>>,
+    /// Writer of current `cur_gen` log file.
+    writer: Arc<Mutex<KvStoreWriter>>,
+    /// Readers of log files in `db_path`
+    reader: KvStoreReader,
+}
+
+impl KvsEngine for KvStore {
+    /// Set the value of a string key to a string.
+    ///
+    /// If the key already exists, the previous value will be overwritten.
+    fn set(&self, key: String, value: String) -> Result<()> {
+        self.writer.lock().unwrap().set(key, value)
+    }
+
+    /// Get the string value of a given string key.
+    ///
+    /// Returns `None` if the given key does not exist.
+    fn get(&self, key: String) -> Result<Option<String>> {
+        if let Some(cmd_pos) = self.key_gen_map.get(&key) {
+            let cmd_pos = cmd_pos.value().clone();
+            if let Cmd::Set { key:_, value } = self.reader.read_command(cmd_pos)? {
+                Ok(Some(value))
+            } else {
+                Err(KvsError::UndefCmdline)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Remove a given key.
+    fn remove(&self, key: String) -> Result<()> {
+        self.writer.lock().unwrap().remove(key)
+    }
+}
+
+impl KvStore {
+    /// Create a `KvStore` with a given `path`.
+    pub fn open(path: &path::Path) -> Result<Self> {
+        let path = Arc::new(path.to_path_buf());
+        fs::create_dir_all(&*path)?;
+
+        let mut readers = BTreeMap::new();
+        let key_gen_map = SkipMap::new();
+        let mut compaction_size = 0 as u64;
+        let gen_list = get_sorted_gen_list(&path)?;
+        for &gen in &gen_list {
+            let mut reader =
+                BufReaderWithPos::new(File::open(log_path(&path, gen))?)?;
+            compaction_size += load(gen, &mut reader, &key_gen_map)?;
+            readers.insert(gen, reader);
+        }
+
+        let cur_gen = *(gen_list.last().unwrap_or(&0)) + 1;
+        let writer = new_log_file(&path, cur_gen)?;
+        let safe_point = Arc::new(AtomicUsize::new(0));
+
+        let reader = KvStoreReader {
+            path: Arc::clone(&path),
+            safe_point,
+            readers: RefCell::new(readers),
+        };
+
+        let key_gen_map = Arc::new(key_gen_map);
+        let writer = KvStoreWriter {
+            reader: reader.clone(),
+            writer,
+            cur_gen,
+            compaction_size,
+            path: Arc::clone(&path),
+            key_gen_map: Arc::clone(&key_gen_map),
+            compaction_threshold: COMPACTION,
+        };
+
+        Ok(KvStore {
+            db_path: Arc::clone(&path),
+            key_gen_map: Arc::clone(&key_gen_map),
+            writer: Arc::new(Mutex::new(writer)),
+            reader,
+        })
     }
 }
 
@@ -322,14 +342,11 @@ fn log_path(path: &Path, gen: u64) -> PathBuf {
     buf
 }
 
-fn new_log_file(path: &Path,
-                gen: u64,
-                readers: &mut HashMap<u64, BufReaderWithPos<File>>)
+fn new_log_file(path: &Path, gen: u64)
                 -> Result<BufWriterWithPos<File>> {
     let new_log_path = log_path(path, gen);
     let writer = OpenOptions::new()
         .create(true).append(true).write(true).open(&new_log_path)?;
-    readers.insert(gen, BufReaderWithPos::new(File::open(&new_log_path)?)?);
     Ok(BufWriterWithPos::new(writer)?)
 }
 
@@ -353,7 +370,7 @@ fn get_sorted_gen_list(path: &PathBuf) -> Result<Vec<u64>> {
 
 fn load(gen: u64,
         reader: &mut BufReaderWithPos<File>,
-        key_gen_map: &mut HashMap<String, CmdPos>)
+        key_gen_map: &SkipMap<String, CmdPos>)
         -> Result<u64> {
     let mut pos = reader.seek(SeekFrom::Start(0))?;
     let mut stream =
@@ -363,18 +380,21 @@ fn load(gen: u64,
         let new_pos = stream.byte_offset() as u64;
         match cmd? {
             Cmd::Set { key, value:_ } => {
-                if let Some(old_cmd_pos) = key_gen_map.insert(key, CmdPos {
+                if let Some(old_cmd) = key_gen_map.get(&key) {
+                    compaction_size += old_cmd.value().len;
+                }
+
+                key_gen_map.insert(key, CmdPos {
                     gen,
                     pos,
                     len: new_pos - pos,
-                }) {
-                    compaction_size += old_cmd_pos.len;
-                }
+                });
             },
             Cmd::Rm { key } => {
-                if let Some(old_cmd_pos) = key_gen_map.remove(&*key) {
-                    compaction_size += old_cmd_pos.len;
+                if let Some(old_cmd) = key_gen_map.remove(&key) {
+                    compaction_size += old_cmd.value().len;
                 }
+
                 compaction_size += new_pos - pos;
             },
         }
