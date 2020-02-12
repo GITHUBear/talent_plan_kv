@@ -1,24 +1,21 @@
-use std::{
-    collections::{
-        BTreeMap,
-    },
-    path::{ self, PathBuf, Path },
-    io::{ self, BufWriter, BufReader, Write, Read, Seek, SeekFrom },
-    fs::{ self, File, OpenOptions },
-    sync::{ Arc, Mutex },
-    sync::atomic::{
-        AtomicUsize,
-        Ordering,
-    },
-    cell::RefCell,
-};
-use serde::{
-    Serialize, Deserialize,
-};
-use serde_json::{ self, Deserializer };
-use crossbeam_skiplist::SkipMap;
-use crate::{KvsError, Result};
 use super::KvsEngine;
+use crate::{KvsError, Result};
+use crossbeam_skiplist::SkipMap;
+use serde::{Deserialize, Serialize};
+use serde_json::{self, Deserializer};
+use std::{
+    cell::RefCell,
+    collections::BTreeMap,
+    fs::{self, File, OpenOptions},
+    io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write},
+    path::{self, Path, PathBuf},
+    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc, Mutex,
+    },
+    thread,
+};
 
 const COMPACTION: u64 = 1024 * 1024;
 
@@ -29,19 +26,19 @@ struct BufWriterWithPos<W: Write + Seek> {
 }
 
 impl<W: Write + Seek> Write for BufWriterWithPos<W> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize>{
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let len = self.writer.write(buf)?;
         self.pos += len as u64;
         Ok(len)
     }
 
-    fn flush(&mut self) -> io::Result<()>{
+    fn flush(&mut self) -> io::Result<()> {
         self.writer.flush()
     }
 }
 
 impl<W: Write + Seek> Seek for BufWriterWithPos<W> {
-    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64>{
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         self.pos = self.writer.seek(pos)?;
         Ok(self.pos)
     }
@@ -64,7 +61,7 @@ struct BufReaderWithPos<R: Read + Seek> {
 }
 
 impl<R: Read + Seek> Read for BufReaderWithPos<R> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize>{
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let len = self.reader.read(buf)?;
         self.pos += len as u64;
         Ok(len)
@@ -72,7 +69,7 @@ impl<R: Read + Seek> Read for BufReaderWithPos<R> {
 }
 
 impl<R: Read + Seek> Seek for BufReaderWithPos<R> {
-    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64>{
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         self.pos = self.reader.seek(pos)?;
         Ok(self.pos)
     }
@@ -124,9 +121,7 @@ impl KvStoreReader {
         self.close_stale_handle();
         let mut readers = self.readers.borrow_mut();
         if !readers.contains_key(&cmd_pos.gen) {
-            let new_reader =
-                BufReaderWithPos::new(
-                    File::open(log_path(&self.path, cmd_pos.gen))?)?;
+            let new_reader = BufReaderWithPos::new(File::open(log_path(&self.path, cmd_pos.gen))?)?;
             readers.insert(cmd_pos.gen, new_reader);
         }
         let reader = readers.get_mut(&cmd_pos.gen).unwrap();
@@ -147,13 +142,18 @@ impl Clone for KvStoreReader {
 }
 
 struct KvStoreWriter {
-    reader: KvStoreReader,
+    // `reader` should be exclusive by background compaction thread.
+    // reader: KvStoreReader,
     writer: BufWriterWithPos<File>,
     cur_gen: u64,
     compaction_size: u64,
     path: Arc<PathBuf>,
     key_gen_map: Arc<SkipMap<String, CmdPos>>,
     compaction_threshold: u64,
+    // Send compaction_gen to background compaction thread.
+    // `KvStoreWriter` is protected by `Mutex` in `KvStore`,
+    // so only one thread can use `sender` at a time.
+    sender: Sender<u64>,
 }
 
 impl KvStoreWriter {
@@ -163,19 +163,30 @@ impl KvStoreWriter {
         serde_json::to_writer(&mut self.writer, &cmd)?;
         self.writer.flush()?;
 
-        if let Cmd::Set { key, value: _ } = cmd {
+        if let Cmd::Set { key, .. } = cmd {
             if let Some(old_cmd_pos) = self.key_gen_map.get(&key) {
                 self.compaction_size += old_cmd_pos.value().len;
             }
-            self.key_gen_map.insert(key, CmdPos {
-                gen: self.cur_gen,
-                pos,
-                len: self.writer.pos - pos,
-            });
+            self.key_gen_map.insert(
+                key,
+                CmdPos {
+                    gen: self.cur_gen,
+                    pos,
+                    len: self.writer.pos - pos,
+                },
+            );
         }
 
         if self.compaction_size > self.compaction_threshold {
-            self.compaction()?;
+            // `cur_gen` and `writer` should be exclusive by current write thread.
+            let compaction_gen = self.cur_gen + 1;
+            self.cur_gen += 2;
+            self.writer = new_log_file(&self.path, self.cur_gen)?;
+            // Immediately reset the `compaction_size`, so that writer thread can
+            // prepare for next compaction generation while compaction is running.
+            self.compaction_size = 0;
+            // send `compaction_gen` to trigger background thread.
+            self.sender.send(compaction_gen).unwrap();
         }
         Ok(())
     }
@@ -193,56 +204,79 @@ impl KvStoreWriter {
             }
 
             if self.compaction_size > self.compaction_threshold {
-                self.compaction()?;
+                // `cur_gen` and `writer` should be exclusive by current write thread.
+                let compaction_gen = self.cur_gen + 1;
+                self.cur_gen += 2;
+                self.writer = new_log_file(&self.path, self.cur_gen)?;
+                // Immediately reset the `compaction_size`, so that writer thread can
+                // prepare for next compaction generation while compaction is running.
+                self.compaction_size = 0;
+                // send `compaction_gen` to trigger background thread.
+                self.sender.send(compaction_gen).unwrap();
             }
             Ok(())
         } else {
             Err(KvsError::KeyNotFound)
         }
     }
+}
 
-    fn compaction(&mut self) -> Result<()> {
-        let compaction_gen = self.cur_gen + 1;
-        self.cur_gen += 2;
-        self.writer = new_log_file(&self.path, self.cur_gen)?;
-        let mut compaction_writer = new_log_file(&self.path, compaction_gen)?;
+// A possible problem is that the `key_gen_map snapshot` is not saved
+// when the compaction is executed, causing the background compaction
+// thread to execute a more aggressive compaction.
+// But this problem does not actually affect the program.
+fn spawn_background(
+    path: Arc<PathBuf>,
+    key_gen_map: Arc<SkipMap<String, CmdPos>>,
+    reader: KvStoreReader,
+    rx: Receiver<u64>,
+) {
+    thread::spawn(move || -> Result<()> {
+        while let Ok(compaction_gen) = rx.recv() {
+            let mut compaction_writer = new_log_file(&*path, compaction_gen)?;
 
-        let mut new_pos = 0;
-        for entry in self.key_gen_map.iter() {
-            let cmd_pos = entry.value().clone();
-            let cmd = self.reader.read_command(cmd_pos.clone())?;
-            serde_json::to_writer(&mut compaction_writer, &cmd)?;
-            self.key_gen_map.insert(
-                entry.key().clone(),
-                CmdPos {
-                    gen: compaction_gen,
-                    pos: new_pos,
-                    len: cmd_pos.len,
+            let mut new_pos = 0;
+            for entry in key_gen_map.iter() {
+                let cmd_pos = entry.value().clone();
+                let cmd = reader.read_command(cmd_pos.clone())?;
+                serde_json::to_writer(&mut compaction_writer, &cmd)?;
+                // Immediately flush the data to files.
+                // Or it will occur that the read and writer threads get `CmdPos`
+                // while the data in files is missed.
+                compaction_writer.flush()?;
+
+                key_gen_map.insert(
+                    entry.key().clone(),
+                    CmdPos {
+                        gen: compaction_gen,
+                        pos: new_pos,
+                        len: cmd_pos.len,
+                    },
+                );
+                new_pos += cmd_pos.len;
+            }
+
+            reader
+                .safe_point
+                .store(compaction_gen as usize, Ordering::SeqCst);
+            reader.close_stale_handle();
+
+            let stale_gens: Vec<u64> = get_sorted_gen_list(&*path)?
+                .into_iter()
+                .filter(|&n| n < compaction_gen)
+                .collect();
+
+            for &gen in &stale_gens {
+                if let Err(e) = fs::remove_file(log_path(&path, gen)) {
+                    error!(
+                        "[compaction_background] File {:?} cannot be remove now: {}",
+                        path, e
+                    );
                 }
-            );
-            new_pos += cmd_pos.len;
-        }
-        compaction_writer.flush()?;
-
-        self.reader.safe_point
-            .store(compaction_gen as usize, Ordering::SeqCst);
-        self.reader.close_stale_handle();
-
-        let stale_gens: Vec<u64> = get_sorted_gen_list(&self.path)?
-            .into_iter()
-            .filter(|&n| n < compaction_gen)
-            .collect();
-
-        for &gen in &stale_gens {
-            if let Err(e) = fs::remove_file(log_path(&self.path, gen)) {
-                error!("[kvs-engine] File {:?} cannot be remove now: {}", self.path, e);
             }
         }
-
-        self.compaction_size = 0;
-
         Ok(())
-    }
+    });
 }
 
 /// `KvStore` for multi-thread.
@@ -273,7 +307,7 @@ impl KvsEngine for KvStore {
     fn get(&self, key: String) -> Result<Option<String>> {
         if let Some(cmd_pos) = self.key_gen_map.get(&key) {
             let cmd_pos = cmd_pos.value().clone();
-            if let Cmd::Set { key:_, value } = self.reader.read_command(cmd_pos)? {
+            if let Cmd::Set { value, .. } = self.reader.read_command(cmd_pos)? {
                 Ok(Some(value))
             } else {
                 Err(KvsError::UndefCmdline)
@@ -300,8 +334,7 @@ impl KvStore {
         let mut compaction_size = 0 as u64;
         let gen_list = get_sorted_gen_list(&path)?;
         for &gen in &gen_list {
-            let mut reader =
-                BufReaderWithPos::new(File::open(log_path(&path, gen))?)?;
+            let mut reader = BufReaderWithPos::new(File::open(log_path(&path, gen))?)?;
             compaction_size += load(gen, &mut reader, &key_gen_map)?;
             readers.insert(gen, reader);
         }
@@ -316,22 +349,27 @@ impl KvStore {
             readers: RefCell::new(readers),
         };
 
+        let reader_clone = reader.clone();
         let key_gen_map = Arc::new(key_gen_map);
+
+        let (tx, rx) = mpsc::channel();
         let writer = KvStoreWriter {
-            reader: reader.clone(),
             writer,
             cur_gen,
             compaction_size,
             path: Arc::clone(&path),
             key_gen_map: Arc::clone(&key_gen_map),
             compaction_threshold: COMPACTION,
+            sender: tx,
         };
+
+        spawn_background(Arc::clone(&path), Arc::clone(&key_gen_map), reader, rx);
 
         Ok(KvStore {
             db_path: Arc::clone(&path),
             key_gen_map: Arc::clone(&key_gen_map),
             writer: Arc::new(Mutex::new(writer)),
-            reader,
+            reader: reader_clone,
         })
     }
 }
@@ -342,25 +380,26 @@ fn log_path(path: &Path, gen: u64) -> PathBuf {
     buf
 }
 
-fn new_log_file(path: &Path, gen: u64)
-                -> Result<BufWriterWithPos<File>> {
+fn new_log_file(path: &Path, gen: u64) -> Result<BufWriterWithPos<File>> {
     let new_log_path = log_path(path, gen);
     let writer = OpenOptions::new()
-        .create(true).append(true).write(true).open(&new_log_path)?;
+        .create(true)
+        .append(true)
+        .write(true)
+        .open(&new_log_path)?;
     Ok(BufWriterWithPos::new(writer)?)
 }
 
 fn get_sorted_gen_list(path: &PathBuf) -> Result<Vec<u64>> {
     let read_dir = fs::read_dir(path)?;
     let mut gen_list: Vec<u64> = read_dir
-        .flat_map(|res_dir_entry| -> Result<_> {
-            Ok(res_dir_entry?.path()) })
-        .filter(|path|
-            path.is_file() && path.extension() == Some("log".as_ref()))
+        .flat_map(|res_dir_entry| -> Result<_> { Ok(res_dir_entry?.path()) })
+        .filter(|path| path.is_file() && path.extension() == Some("log".as_ref()))
         .flat_map(|path| {
             path.file_name()
                 .and_then(|file_name| file_name.to_str())
-                .map(|str| str.trim_end_matches(".log").parse::<u64>()) })
+                .map(|str| str.trim_end_matches(".log").parse::<u64>())
+        })
         .flatten()
         .collect();
     // from smallest to largest
@@ -368,35 +407,38 @@ fn get_sorted_gen_list(path: &PathBuf) -> Result<Vec<u64>> {
     Ok(gen_list)
 }
 
-fn load(gen: u64,
-        reader: &mut BufReaderWithPos<File>,
-        key_gen_map: &SkipMap<String, CmdPos>)
-        -> Result<u64> {
+fn load(
+    gen: u64,
+    reader: &mut BufReaderWithPos<File>,
+    key_gen_map: &SkipMap<String, CmdPos>,
+) -> Result<u64> {
     let mut pos = reader.seek(SeekFrom::Start(0))?;
-    let mut stream =
-        Deserializer::from_reader(reader).into_iter::<Cmd>();
+    let mut stream = Deserializer::from_reader(reader).into_iter::<Cmd>();
     let mut compaction_size = 0 as u64;
     while let Some(cmd) = stream.next() {
         let new_pos = stream.byte_offset() as u64;
         match cmd? {
-            Cmd::Set { key, value:_ } => {
+            Cmd::Set { key, .. } => {
                 if let Some(old_cmd) = key_gen_map.get(&key) {
                     compaction_size += old_cmd.value().len;
                 }
 
-                key_gen_map.insert(key, CmdPos {
-                    gen,
-                    pos,
-                    len: new_pos - pos,
-                });
-            },
+                key_gen_map.insert(
+                    key,
+                    CmdPos {
+                        gen,
+                        pos,
+                        len: new_pos - pos,
+                    },
+                );
+            }
             Cmd::Rm { key } => {
                 if let Some(old_cmd) = key_gen_map.remove(&key) {
                     compaction_size += old_cmd.value().len;
                 }
 
                 compaction_size += new_pos - pos;
-            },
+            }
         }
         pos = new_pos;
     }

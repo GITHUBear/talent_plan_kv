@@ -1,22 +1,16 @@
-use sled::{
-    Db,
-};
-use crate::{
-    KvsEngine, Result, KvsError,
-};
+use crate::{KvsEngine, KvsError, Result};
+use sled::Db;
 
 /// `SledStore` is a top level wrapper of various implementation of `KvsEngine`.
 #[derive(Clone)]
-pub struct SledStore{
+pub struct SledStore {
     db: Db,
 }
 
 impl SledStore {
     /// Creates a `SledKvsEngine` from `sled::Db`.
     pub fn new(db: Db) -> Self {
-        SledStore {
-            db,
-        }
+        SledStore { db }
     }
 }
 

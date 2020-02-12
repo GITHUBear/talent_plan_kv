@@ -1,4 +1,4 @@
-use crate::{ Result };
+use crate::Result;
 
 mod kvs;
 mod sleds;

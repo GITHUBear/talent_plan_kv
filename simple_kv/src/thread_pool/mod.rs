@@ -1,6 +1,4 @@
-use crate::{
-    Result
-};
+use crate::Result;
 
 /// `ThreadPool`
 pub trait ThreadPool {
@@ -12,8 +10,8 @@ pub trait ThreadPool {
     /// Returns an error if any thread fails to spawn.
     /// All previously-spawned threads are terminated.
     fn new(threads: u32) -> Result<Self>
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 
     /// Spawn a function into the thread pool.
     ///
@@ -22,13 +20,14 @@ pub trait ThreadPool {
     /// the thread count is not reduced nor is the thread pool destroyed,
     /// corrupted or invalidated.
     fn spawn<F>(&self, job: F)
-        where F: FnOnce() + Send + 'static;
+    where
+        F: FnOnce() + Send + 'static;
 }
 
 mod naive;
-mod shared;
 mod rayon;
+mod shared;
 
 pub use naive::NaiveThreadPool;
-pub use shared::SharedQueueThreadPool;
 pub use rayon::RayonThreadPool;
+pub use shared::SharedQueueThreadPool;

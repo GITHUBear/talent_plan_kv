@@ -55,7 +55,9 @@ impl From<sled::Error> for KvsError {
 
 /// Convert FromUtf8Error to KvsError
 impl From<FromUtf8Error> for KvsError {
-    fn from(utf8err: FromUtf8Error) -> KvsError { KvsError::Utf8Error(utf8err) }
+    fn from(utf8err: FromUtf8Error) -> KvsError {
+        KvsError::Utf8Error(utf8err)
+    }
 }
 
 /// Define `Result<T>` for convenience

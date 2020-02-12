@@ -1,13 +1,8 @@
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
-use simple_kv::{KvsError, KvsEngine, Result, KvServer, KvStore, SledStore};
-use std::{
-    env::current_dir,
-    net::SocketAddr,
-    str::FromStr,
-    process::exit,
-    fs,
-};
+use simple_kv::{KvServer, KvStore, KvsEngine, KvsError, Result, SledStore};
+use std::{env::current_dir, fs, net::SocketAddr, process::exit, str::FromStr};
 use structopt::StructOpt;
 
 use env_logger::fmt::Target;
@@ -26,33 +21,28 @@ impl FromStr for Engine {
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "kvs" => {
-                Ok(Engine::kvs)
-            },
-            "sled" => {
-                Ok(Engine::sled)
-            },
-            _ => {
-                Err(KvsError::ParseEngineNameErr)
-            },
+            "kvs" => Ok(Engine::kvs),
+            "sled" => Ok(Engine::sled),
+            _ => Err(KvsError::ParseEngineNameErr),
         }
     }
 }
 
 #[derive(Debug, StructOpt)]
 struct Opt {
-    #[structopt(long,
-    required = false,
-    default_value = "127.0.0.1:4000",
-    parse(try_from_str))]
+    #[structopt(
+        long,
+        required = false,
+        default_value = "127.0.0.1:4000",
+        parse(try_from_str)
+    )]
     addr: SocketAddr,
-    #[structopt(long,
-    parse(try_from_str))]
+    #[structopt(long, parse(try_from_str))]
     engine: Option<Engine>,
 }
 
 fn get_engine_name_from_file() -> Result<Option<Engine>> {
-    let path= current_dir()?.join("engine");
+    let path = current_dir()?.join("engine");
     if !path.exists() {
         return Ok(None);
     }
@@ -68,9 +58,7 @@ fn get_engine_name_from_file() -> Result<Option<Engine>> {
     }
 }
 
-fn run_kv_server<E: KvsEngine, P: ThreadPool>(engine: E,
-                                              addr: SocketAddr,
-                                              pool: P) -> Result<()> {
+fn run_kv_server<E: KvsEngine, P: ThreadPool>(engine: E, addr: SocketAddr, pool: P) -> Result<()> {
     let mut server = KvServer::new(engine, addr, pool);
     Ok(server.run()?)
 }
@@ -107,11 +95,11 @@ fn main() -> Result<()> {
         Engine::kvs => {
             let engine = KvStore::open(&current_dir()?)?;
             run_kv_server(engine, opt.addr, pool)?;
-        },
+        }
         Engine::sled => {
             let engine = SledStore::new(sled::open(current_dir()?)?);
             run_kv_server(engine, opt.addr, pool)?;
-        },
+        }
     }
 
     Ok(())

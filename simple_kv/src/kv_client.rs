@@ -1,27 +1,14 @@
-use serde_json::de::{
-    Deserializer, IoRead
+use crate::{
+    protocol::{GetResponse, RemoveResponse, Request, Response, SetResponse},
+    KvsError, Result,
 };
 use serde::Deserialize;
-use std::{
-    io::{
-        BufReader, BufWriter,
-    },
-    net::{
-        TcpStream, SocketAddr,
-    }
-};
-use crate::{
-    Result,
-    protocol::{
-        Request,
-        Response,
-        GetResponse,
-        SetResponse,
-        RemoveResponse,
-    },
-    KvsError
-};
+use serde_json::de::{Deserializer, IoRead};
 use std::io::Write;
+use std::{
+    io::{BufReader, BufWriter},
+    net::{SocketAddr, TcpStream},
+};
 
 /// `KvClient` is a client end of `KvServer`.
 pub struct KvClient {
@@ -35,8 +22,7 @@ impl KvClient {
         let connection = TcpStream::connect(addr)?;
         let writer = connection.try_clone()?;
         Ok(KvClient {
-            reader:
-                Deserializer::from_reader(BufReader::new(connection)),
+            reader: Deserializer::from_reader(BufReader::new(connection)),
             writer: BufWriter::new(writer),
         })
     }
@@ -49,15 +35,13 @@ impl KvClient {
         let resp = Response::deserialize(&mut self.reader)?;
         debug!("[client get] Get response from server {:?}", &resp);
         match resp {
-            Response::Get(get) => {
-                match get {
-                    GetResponse::Ok(val) => Ok(val),
-                    GetResponse::Err(msg) => Err(KvsError::StringErr(msg)),
-                }
+            Response::Get(get) => match get {
+                GetResponse::Ok(val) => Ok(val),
+                GetResponse::Err(msg) => Err(KvsError::StringErr(msg)),
             },
             _ => {
                 panic!("[client get] Reach unreachable code");
-            },
+            }
         }
     }
 
@@ -69,18 +53,15 @@ impl KvClient {
         let resp = Response::deserialize(&mut self.reader)?;
         debug!("[client set] Get response from server {:?}", &resp);
         match resp {
-            Response::Set(set) => {
-                match set {
-                    SetResponse::Ok(_) => Ok(()),
-                    SetResponse::Err(msg) => Err(KvsError::StringErr(msg)),
-                }
+            Response::Set(set) => match set {
+                SetResponse::Ok(_) => Ok(()),
+                SetResponse::Err(msg) => Err(KvsError::StringErr(msg)),
             },
             _ => {
                 panic!("[client set] Reach unreachable code");
-            },
+            }
         }
     }
-
 
     /// Remove a string key in the server.
     pub fn remove(&mut self, key: String) -> Result<()> {
@@ -90,15 +71,13 @@ impl KvClient {
         let resp = Response::deserialize(&mut self.reader)?;
         debug!("[client remove] Get response from server {:?}", &resp);
         match resp {
-            Response::Remove(rm) => {
-                match rm {
-                    RemoveResponse::Ok(_) => Ok(()),
-                    RemoveResponse::Err(msg) => Err(KvsError::StringErr(msg)),
-                }
+            Response::Remove(rm) => match rm {
+                RemoveResponse::Ok(_) => Ok(()),
+                RemoveResponse::Err(msg) => Err(KvsError::StringErr(msg)),
             },
             _ => {
                 panic!("[client remove] Reach unreachable code");
-            },
+            }
         }
     }
 }
